@@ -1,8 +1,23 @@
 <?php session_start();
 require  "../config.inc.php";
-
 require  'session.inc.php';
 require PATH . '/class/connect.inc.php'; // เชื่อมต่อฐานข้อมูล
+error_reporting(E_ERROR | E_PARSE);
+if($_GET["do"]=="del"){
+    $mysqli->query("DELETE FROM `citizens` WHERE (`id`='{$_GET["delID"]}')");
+     header('location:member.php?id='.$_GET["id"].'&step=Delcomplete');
+     exit;
+}
+if(!empty($_GET["id"])) {
+
+        $q = $mysqli->query("SELECT households.* ,Count(citizens.id) AS amt_member FROM `households` 
+            LEFT JOIN citizens ON citizens.household_id = households.id 
+
+where households.id =   '{$_GET["id"]}'  
+GROUP BY  households.id ") ;
+$house = $q->fetch_assoc();
+
+}
 
 ?>
 <!doctype html>
@@ -182,31 +197,84 @@ require PATH . '/class/connect.inc.php'; // เชื่อมต่อฐาน
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 
                 <br />
-                <h2>ข้อมูลประชากร</h2>
+                <h2>จัดการข้อมูลบ้านเลขที่ : <?=$house["house_no"]?> </h2>
+                <hr />
 
+                <?php 
+                if(!empty($_GET["do"])){                   
+                    
+                ?>
+                <!--จัดการ ข้อมูลสมาชิก -->
+
+                <div style="width: 80%;margin: 10px auto;">
+                    <h4>เพิ่มสมาชิกในทะเบียนบ้าน</h4>
+                    <form action="save_member.php" method="POST">
+                        <input name="household_id" value="<?=$_GET["id"]?>" type="hidden">
+                        <?php if(!empty($_GET["editId"])){?>
+                        <input name="editId" value="<?=$_GET["editId"]?>" type="hidden">
+                        <?php 
+                        $sql ="SELECT * FROM `citizens` WHERE citizens.id = '{$_GET["editId"]}' ";
+                        $qprofile = $mysqli->query($sql);
+                        $profile  =   $qprofile->fetch_assoc();
+                         } ?>
+                        <div class="mb-3">
+                            <label for="citizen_id" class="form-label">หมายเลขบัตรประชาชน</label>
+                            <input type="text" class="form-control" id="citizen_id" name="citizen_id" maxlength="13"
+                                value="<?=$profile["citizen_id"]?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">ชื่อ</label>
+                            <input type="text" class="form-control" id="name" name="name" value="<?=$profile["name"]?>"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="surname" class="form-label">นามสกุล</label>
+                            <input type="text" class="form-control" id="surname" name="surname"
+                                value="<?=$profile["surname"]?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="birth_date" class="form-label">วันเกิด</label>
+                            <input type="date" class="form-control" id="birth_date" name="birth_date"
+                                value="<?=$profile["birth_date"]?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="gender" class="form-label">เพศ</label>
+                            <select class="form-select" id="gender" name="gender" required>
+                                <option value="Male" <?php if($profile["gender"]=="Male") echo 'selected';?>>
+                                    ชาย</option>
+                                <option value="Female" <?php if($profile["gender"]=="Female") echo 'selected';?>>หญิง
+                                </option>
+                            </select>
+                        </div>
+                        <center><button type="submit" class="btn btn-primary">บันทึก</button>
+                            <a href="?id=<?=$_GET["id"]?>" class="btn btn-secondary" role="button">ยกเลิก</a>
+                        </center>
+
+                    </form>
+                </div>
+                <?php }else {?>
+                <br />
+                <h4> <i class="bi bi-person-gear"></i> &nbsp; ข้อมูลสมาชิก
+                    <span class="badge text-bg-secondary"><?=$house["amt_member"]?></span>
+                </h4>
                 <div class="d-flex justify-content-end">
-                    <a href="register.php?do=add" class="btn btn-primary"><i class="bi bi-plus-circle"></i>
+                    <a href="?do=add&id=<?=$_GET["id"]?>" class="btn btn-primary"><i class="bi bi-plus-circle"></i>
                         เพิ่มข้อมูล </a>
                 </div>
                 <hr />
                 <div class="table-responsive small">
                     <table class="table table-striped table-sm tableList">
                         <?php 
-            $sql = " SELECT households.* ,Count(citizens.id) AS amt_member FROM `households` 
-            LEFT JOIN citizens ON citizens.household_id = households.id 
-GROUP BY  households.id
-
-
-            
-             ";
-            $q = $mysqli->query($sql);
-        ?>
+                        $sql = " SELECT * FROM `citizens` WHERE citizens.household_id = '{$_GET["id"]}' ";
+                        $q = $mysqli->query($sql);
+                        ?>
                         <thead>
                             <tr>
                                 <th scope="col">ปรับปรุงข้อมูล</th>
-                                <th scope="col">บ้านเลขที่</th>
-                                <th scope="col">จำนวนผู้อาศัย</th>
-                                <th scope="col">เจ้าบ้าน</th>
+                                <th scope="col">หมายเลขบัตรประชาชน</th>
+                                <th scope="col">ขื่อ นามสกุล</th>
+                                <th scope="col">เพศ</th>
+                                <th scope="col">เกิดวันที่</th>
                                 <th scope="col">จัดการข้อมูล</th>
                             </tr>
                         </thead>
@@ -214,27 +282,38 @@ GROUP BY  households.id
                             <?php while($row = $q->fetch_assoc()) { ?>
                             <tr>
                                 <td><?=$row["update_at"]?></td>
-                                <td><?=$row["house_no"]?></td>
-                                <td><?=$row["amt_member"]?></td>
-                                <td><?=$row["onwer_name"]?></td>
+                                <td><?=$row["citizen_id"]?></td>
+                                <td><?=$row["name"]." ".$row["surname"]?></td>
+                                <td><?=$row["gender"]?></td>
                                 <td>
-                                    <a class="btn btn-outline-primary  btn-sm mx-2" href="member.php?id=<?=$row["id"]?>"
-                                        role="button"><i class="bi bi-person-gear"></i>จัดการสมาชิก</a>
+                                    <?=$row["birth_date"]?>
+                                    <br />
+                                    (อายุ <?php  echo  calculateAge($row["birth_date"]);?> ปี)
+                                </td>
+                                <td>
+
                                     <a class="btn btn-secondary btn-sm mx-2"
-                                        href="register.php?do=edit&id=<?=$row["id"]?>" role="button"><i
+                                        href="?do=edit&editId=<?=$row["id"]?>&id=<?=$_GET["id"]?>" role="button"><i
                                             class="bi bi-pencil-square"></i> แก้ไข</a>
 
                                     <a class="btn btn-danger btn-sm mx-2"
-                                        href="save_household.php?do=del&delID=<?=$row["id"]?>" role="button"
-                                        onclick="return confirm('ยืนยันการลบข้อมูล ?')"> <i class="bi
-                                        bi-trash-fill"></i> ลบ</a>
+                                        href="?do=del&id=<?=$_GET["id"]?>&delID=<?=$row["id"]?>" role="button"
+                                        onclick="return confirm('ยืนยันการลบข้อมูล ?')"> <i
+                                            class="bi bi-trash-fill"></i>ลบ</a>
 
                             </tr>
                             <?php  }?>
                         </tbody>
                     </table>
                 </div>
+
+
+                <?php } ?>
             </main>
+
+
+
+
         </div>
     </div>
 
@@ -278,8 +357,10 @@ GROUP BY  households.id
             });
         }
 
+
     });
     </script>
+
 </body>
 
 </html>
